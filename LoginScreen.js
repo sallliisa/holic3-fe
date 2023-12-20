@@ -8,6 +8,7 @@ import Colors from './constants/Colors';
 import Font from './constants/Font';
 import { Ionicons } from '@expo/vector-icons';
 import AppTextInput from './components/AppTextInput';
+import storage from './lib/storage';
 
 const LoginScreen = () => {
   const navigation = useNavigation();
@@ -16,28 +17,16 @@ const LoginScreen = () => {
 
   const handleLogin = async () => {
     try {
-      const response = await fetch('http://10.42.69.66:6969/api/user/list');
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
-      }
-      const users = await response.json();
-
-      const matchingUser = users.data.find(
-        user => user.username === username && user.password === password
-      );
-
-      if (matchingUser) {
-        navigation.replace('Dashboard');
-      } else {
-        Alert.alert('Login Failed', 'Username or password is incorrect');
-      }
+      const response = await fetch('http://10.42.69.66:6969/api/login', {method: "POST"})
+      if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`)
+      const res = await response.json()
+      storage.save({key: 'user', data: res.data.user})
+      navigation.replace('Dashboard')
     } catch (error) {
       console.error('Error during login:', error);
       Alert.alert('Error', 'An error occurred during login');
     }
   };
-
 
   return (
       <SafeAreaView>
@@ -85,7 +74,6 @@ const LoginScreen = () => {
             <AppTextInput placeholder="Password"
               value={password}
               onChangeText={setPassword}
-
              />
           </View>
   
@@ -135,7 +123,7 @@ const LoginScreen = () => {
             </Text>
           </TouchableOpacity> */}
   
-          <View
+          {/* <View
             style={{
               marginVertical: Spacing * 3,
             }}
@@ -201,7 +189,7 @@ const LoginScreen = () => {
                 />
               </TouchableOpacity>
             </View>
-          </View>
+          </View> */}
         </View>
       </SafeAreaView>
     );

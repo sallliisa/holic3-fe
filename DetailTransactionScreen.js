@@ -13,7 +13,7 @@ const DetailTransaksiScreen = () => {
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [transactionPayment, setTransactionPayment] = useState([]);
+  const [transactionData, setTransactionData] = useState({})
 
   const { id } = route.params;
 
@@ -29,24 +29,10 @@ const DetailTransaksiScreen = () => {
         console.log('Transaction Details API Response:', detailsData);
         setDetails(detailsData.data);
 
-        const responseStatus = await fetch(`http://10.42.69.66:6969/api/transaction/list`);
-        if (!responseStatus.ok) {
-          throw new Error(`HTTP error! Status: ${responseStatus.status}`);
-        }
-        const statusData = await responseStatus.json();
-        console.log('Transaction Status API Response:', statusData);
-
-        const transactionData = statusData.data.find(transaction => transaction.id === id);
-
-        if (!transactionData) {
-          throw new Error('Transaction data not found.');
-        }
-
-        const transactionStatus = transactionData.status;
-        const transactionPayment = transactionData.payment_method;
-
-        setStatus(transactionStatus);
-        setTransactionPayment(transactionPayment);
+        const responseStatus = await fetch(`http://10.42.69.66:6969/api/transaction/show/${id}`);
+        if (!responseStatus.ok) throw new Error(`HTTP error! Status: ${responseStatus.status}`);
+        const {data: transactionData} = await responseStatus.json();
+        setTransactionData(transactionData)
       } catch (error) {
         console.error('Error fetching data:', error.message);
         setError('Error fetching data. Please try again.');
@@ -61,8 +47,6 @@ const DetailTransaksiScreen = () => {
   const handleStatusUpdate = async () => {
     try {
       let apiUrl = "";
-
-      // Determine the appropriate API endpoint based on the current status
       if (status === "TAKEN") {
         apiUrl = "http://10.42.69.66:6969/api/transaction/take_order";
       } else if (status === "ON_COOK") {
@@ -77,19 +61,16 @@ const DetailTransaksiScreen = () => {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ transaction_id: id }), // Adjust the payload as needed
+        body: JSON.stringify({ transaction_id: id }),
       });
 
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
 
-      // Assuming a successful update, you may want to update the local state
-      // or perform any other necessary actions
       console.log("Status update successful");
     } catch (error) {
       console.error("Error updating status:", error.message);
-      // Handle the error as needed
     }
   };
 
@@ -109,45 +90,61 @@ const DetailTransaksiScreen = () => {
           <Text style={styles.errorText}>{error}</Text>
         </View>
       ) : (
-        <>
-          <FlatList
-            data={details}
-            keyExtractor={(item) => item.id.toString()}
-            renderItem={({ item }) => (
-              <View style={styles.itemContainer}>
-                <View style={styles.itemDetails}>
-                  <Image
-                    style={styles.menuImage}
-                    source={{ uri: item.menu_img_photo }}
-                  />
-                  <Text>{item.amount} x </Text>
-                  <Text>{item.menu_name}</Text>
+        <View style={{display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '100%'}}>
+          <View style={{flexDirection: 'column', gap: 32}}>
+            <View style={{flexDirection: 'column', gap: 4}}>
+              <Text style={{fontSize: FontSize.large}}>{transactionData.code}</Text>
+              <Text style={{color: Colors.darkText}}>{new Date(transactionData.date).toLocaleDateString('id-ID')} - Meja {transactionData.table_code} - Shift {transactionData.shift}</Text>
+              <Text>Pelanggan: {transactionData.customer_name}</Text>
+              <Text>Penyaji: {transactionData.user_name}</Text>
+              <Text>Kode Promo :{transactionData.promo_name}</Text>
+            </View>
+
+            <FlatList
+              contentContainerStyle={{flexDirection: 'column', gap: 8, display: 'flex'}}
+              data={details}
+              keyExtractor={(item) => item.id.toString()}
+              renderItem={({ item }) => (
+                <View style={{flexDirection: 'row', justifyContent: 'space-between', backgroundColor: Colors.gray, padding: 8, borderRadius: 16}}>
+                  <View style={{display: 'flex', flexDirection: 'row', gap: 8}}>
+                    <Image
+                      style={styles.menuImage}
+                      source={{ uri: item.menu_img_photo }}
+                    />
+                    <View style={{display: 'flex', flexDirection: 'column', gap: 4}}>
+                      <View style={{display: 'flex', flexDirection: 'row', gap: 4}}>
+                        <Text>{item.menu_name}</Text>
+                        <Text style={{color: Colors.darkText}}>x{item.amount}</Text>
+                      </View>
+                      <Text style={{fontSize: 12}}>Rp. {item.menu_unit_cost}</Text>
+                    </View>
+                  </View>
+                  <Text style={{fontSize: 12}}>Rp. {item.menu_unit_cost * item.amount}</Text>
                 </View>
-                <Text>Rp. {item.menu_unit_cost}</Text>
-              </View>
-            )}
-          />
+              )}
+            />
 
-          <View style={styles.totalContainer}>
-            <Text>Total Item: <Text style={styles.boldText}>{totalItems}</Text></Text>
-            <Text>Total: <Text style={styles.boldText}>Rp. {totalTransactionCost}</Text></Text>
+            <View style={{display: 'flex', flexDirection: 'column', gap: 2}}>
+              <Text>Subtotal: <Text>Rp. {transactionData.subtotal}</Text></Text>
+              <Text>Promo: <Text>Rp. {transactionData.total_discount}</Text></Text>
+              <Text>Total: <Text style={styles.boldText}>Rp. {transactionData.total}</Text></Text>
+            </View>
+
+            <View style={{display: 'flex', flexDirection: 'column', gap: 2}}>
+              <Text>Status: <Text style={styles.boldText}>{transactionData.status}</Text></Text>
+              <Text>Pembayaran: <Text style={styles.boldText}>{transactionData.payment_method}</Text></Text>
+            </View>
           </View>
-
-          <View style={styles.statusContainer}>
-            <Text>Status: <Text style={styles.boldText}>{status}</Text></Text>
-            <Text>Pembayaran: <Text style={styles.boldText}>{transactionPayment}</Text></Text>
-          </View>
-
-          <View style={styles.buttonContainer}>
+          {["TAKEN", "ON_COOK"].includes(transactionData.status) && (
             <TouchableOpacity
               onPress={handleStatusUpdate}
-              style={styles.button}
+              style={{...styles.button}}
             >
-              <FontAwesome name="shopping-cart" size={24} color={Colors.onPrimary} style={styles.buttonIcon} />
-              <Text style={styles.buttonText}>Selesaikan Pesanan</Text>
+              {/* <FontAwesome name="shopping-cart" size={24} color={Colors.onPrimary} style={styles.buttonIcon} /> */}
+              <Text style={styles.buttonText}>{transactionData.status == 'TAKEN' ? 'Mulai Masak' : 'Selesai Masak'}</Text>
             </TouchableOpacity>
-          </View>
-        </>
+          )}
+        </View>
       )}
     </View>
   );
@@ -157,6 +154,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
+    padding: 16
   },
   loadingIndicator: {
     flex: 1,
@@ -178,7 +176,6 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing * 2,
     paddingTop: Spacing * 4,
     backgroundColor: Colors.background,
-    marginVertical: Spacing,
     borderRadius: Spacing,
     shadowColor: Colors.gray,
     shadowOffset: {
@@ -196,7 +193,6 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     resizeMode: 'cover',
-    marginRight: 10,
     borderRadius: 8,
   },
   totalContainer: {
@@ -206,7 +202,6 @@ const styles = StyleSheet.create({
     fontFamily: Font['poppins-bold'],
   },
   statusContainer: {
-    marginVertical: Spacing * 0.5,
     padding: Spacing * 2,
   },
   buttonContainer: {
@@ -217,6 +212,7 @@ const styles = StyleSheet.create({
   button: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     padding: Spacing * 2,
     backgroundColor: Colors.primary,
     borderRadius: Spacing,
@@ -229,9 +225,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: Spacing,
     maxWidth: 700,
-  },
-  buttonIcon: {
-    marginRight: 10,
   },
   buttonText: {
     fontFamily: Font['poppins-bold'],
