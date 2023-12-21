@@ -3,35 +3,36 @@ import { View, Text, FlatList, TouchableOpacity, ActivityIndicator } from 'react
 import Spacing from './constants/Spacing';
 import FontSize from './constants/FontSize';
 import Colors from './constants/Colors';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 
 const TransactionScreen = () => {
   const navigation = useNavigation();
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedStatus, setSelectedStatus] = useState('COMPLETED');
+  const [selectedStatus, setSelectedStatus] = useState('TAKEN');
+
+  const fetchTransactions = async () => {
+    try {
+      const response = await fetch(`http://10.42.69.66:6969/api/transaction/list?status=${selectedStatus}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+      const data = await response.json();
+      setTransactions(data.data);
+    } catch (error) {
+      console.error('Error fetching transactions:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchTransactions = async () => {
-      try {
-        const response = await fetch(`http://10.42.69.66:6969/api/transaction/list?status=${selectedStatus}`);
-        if (!response.ok) {
-          throw new Error(`HTTP error! Status: ${response.status}`);
-        }
-        const data = await response.json();
-        setTransactions(data.data);
-      } catch (error) {
-        console.error('Error fetching transactions:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchTransactions();
   }, [selectedStatus]);
 
+  useEffect(() => { const unsubscribe = navigation.addListener('focus', () => { setSelectedStatus("TAKEN"); fetchTransactions() }); return unsubscribe; }, [navigation]);
+
   const handleTransactionPress = (id) => {
-    // Navigate to DetailTransaksiScreen and pass the selected transactionId
     navigation.navigate('DetailTransaksi', { id });
   };
 
@@ -64,7 +65,6 @@ const TransactionScreen = () => {
           data={transactions}
           keyExtractor={(item) => item.id.toString()}
           renderItem={({ item }) => (
-            // Inside the FlatList renderItem={({ item }) => { ... }}
             <TouchableOpacity
               onPress={() => handleTransactionPress(item.id)}
               style={{

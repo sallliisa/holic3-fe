@@ -6,8 +6,10 @@ import Colors from './constants/Colors';
 import Font from './constants/Font';
 import { useRoute } from '@react-navigation/native';
 import { FontAwesome } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 
 const DetailTransaksiScreen = () => {
+  const navigation = useNavigation();
   const route = useRoute();
   const [details, setDetails] = useState([]);
   const [status, setStatus] = useState('');
@@ -20,14 +22,14 @@ const DetailTransaksiScreen = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Mengambil data  dari api  detail transaksi
+        // Mengambil data dari api detail transaksi
         const responseDetails = await fetch(`http://10.42.69.66:6969/api/transactionDetail/list?transaction_id=${id}`);
         if (!responseDetails.ok) {
           throw new Error(`HTTP error! Status: ${responseDetails.status}`);
         }
         const detailsData = await responseDetails.json();
         console.log('Transaction Details API Response:', detailsData);
-        setDetails(detailsData.data);
+        setDetails(detailsData.data); 
 
         const responseStatus = await fetch(`http://10.42.69.66:6969/api/transaction/show/${id}`);
         if (!responseStatus.ok) throw new Error(`HTTP error! Status: ${responseStatus.status}`);
@@ -45,11 +47,12 @@ const DetailTransaksiScreen = () => {
   }, [id]);
 
   const handleStatusUpdate = async () => {
+    console.log()
     try {
       let apiUrl = "";
-      if (status === "TAKEN") {
+      if (transactionData.status === "TAKEN") {
         apiUrl = "http://10.42.69.66:6969/api/transaction/take_order";
-      } else if (status === "ON_COOK") {
+      } else if (transactionData.status === "ON_COOK") {
         apiUrl = "http://10.42.69.66:6969/api/transaction/finish";
       } else {
         console.warn("Invalid status for status update");
@@ -67,7 +70,8 @@ const DetailTransaksiScreen = () => {
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
-
+      console.log('response is', response)
+      navigation.navigate('Transaksi');
       console.log("Status update successful");
     } catch (error) {
       console.error("Error updating status:", error.message);
@@ -137,8 +141,10 @@ const DetailTransaksiScreen = () => {
           </View>
           {["TAKEN", "ON_COOK"].includes(transactionData.status) && (
             <TouchableOpacity
-              onPress={handleStatusUpdate}
-              style={{...styles.button}}
+            onPress={() => {
+              handleStatusUpdate();
+            }}
+            style={{ ...styles.button }}
             >
               {/* <FontAwesome name="shopping-cart" size={24} color={Colors.onPrimary} style={styles.buttonIcon} /> */}
               <Text style={styles.buttonText}>{transactionData.status == 'TAKEN' ? 'Mulai Masak' : 'Selesai Masak'}</Text>
